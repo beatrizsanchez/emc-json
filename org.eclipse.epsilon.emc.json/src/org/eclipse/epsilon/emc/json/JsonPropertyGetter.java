@@ -7,34 +7,53 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 public class JsonPropertyGetter extends JavaPropertyGetter {
-	
+
+	protected JsonModel model;
+
 	@Override
 	public Object invoke(Object object, String property)
 			throws EolRuntimeException {
-		
-		JSONObject jsonObject = (JSONObject) object;
-		
-		PlainXmlProperty p = PlainXmlProperty.parse(property);
-		
-		if (p != null) {
-			if (p.isAttribute()) {
-				return p.cast(jsonObject.get(p.getProperty()) + "");
+
+		if(object instanceof JSONElement 
+				&& ((JSONElement) object).getValue() instanceof JSONObject) 
+		{
+
+			final JSONElement e = (JSONElement) object;
+			final JSONObject value = (JSONObject) e.getValue();
+
+			if ("children".equals(property)) {
+				return e.getChildren();
 			}
-			else if (p.isElement()) {
-				return jsonObject.get(p.getProperty());
+
+			if ("text".equals(property)) {
+				return value.toJSONString();
 			}
-			else if (p.isMany()) {
-				Object result = jsonObject.get(p.getProperty());
-				if (result == null) {
-					return new JSONArray();
+
+			if ("parent".equals(property)) {
+				return e.parent;
+			}			
+
+			JSONObject jsonObject = (JSONObject) e.getValue();
+			PlainXmlProperty p = PlainXmlProperty.parse(property);
+
+			if (p != null) {
+				Object prop = jsonObject.get(p.getProperty());
+				if (p.isAttribute()) {
+					return p.cast(String.valueOf(prop));
 				}
-				else {
-					return result;
+				else if (p.isElement()) {
+					return new JSONElement(prop);
 				}
-			}
-		}
-		
+
+				else if (p.isMany()) {
+					if (prop == null) {
+						return new JSONArray();
+					} else {
+						return (prop);
+					}
+				}
+			}	
+		} 
 		return super.invoke(object, property);
 	}
-	
 }

@@ -4,20 +4,22 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
-import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.AuthSchemes;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.eclipse.epsilon.common.util.FileUtil;
 import org.eclipse.epsilon.common.util.StringProperties;
-import org.eclipse.epsilon.emc.plainxml.PlainXmlModel;
-import org.eclipse.epsilon.eol.EolModule;
+import org.eclipse.epsilon.emc.plainxml.PlainXmlType;
 import org.eclipse.epsilon.eol.exceptions.EolRuntimeException;
 import org.eclipse.epsilon.eol.exceptions.models.EolEnumerationValueNotFoundException;
 import org.eclipse.epsilon.eol.exceptions.models.EolModelElementTypeNotFoundException;
@@ -36,61 +38,61 @@ public class JsonModel extends CachedModel<Object>{
 	public static String PROPERTY_URI = "uri";
 	public static String PROPERTY_USERNAME = "username";
 	public static String PROPERTY_PASSWORD = "password";
-	
+
 	protected File file;
 	protected String uri;
 	protected String username;
 	protected String password;
-	protected Object root = null;
-	
-	public static void main(String[] args) throws Exception {
+	protected JSONElement root = null;
+
+	/*public static void main(String[] args) throws Exception {
 		JsonModel model = new JsonModel();
 		model.setName("M");
 		model.setFile(new File("commits.json"));
 		model.load();
-		
+
 		EolModule module = new EolModule();
 		module.getContext().getModelRepository().addModel(model);
 		module.parse("M.root[0].e_commit.e_author.a_name.println();");
 		module.execute();		
-	}
-	
-	public Object getRoot() {
+	}*/
+
+	public JSONElement getRoot() {
 		return root;
 	}
-	
-	public void setRoot(Object root) {
+
+	public void setRoot(JSONElement root) {
 		this.root = root;
 	}
-	
+
 	public void setFile(File file) {
 		this.file = file;
 	}
-	
+
 	public File getFile() {
 		return file;
 	}
-	
+
 	public void setUri(String uri) {
 		this.uri = uri;
 	}
-	
+
 	public String getUri() {
 		return uri;
 	}
-	
+
 	public void setUsername(String username) {
 		this.username = username;
 	}
-	
+
 	public String getUsername() {
 		return username;
 	}
-	
+
 	public void setPassword(String password) {
 		this.password = password;
 	}
-	
+
 	public String getPassword() {
 		return password;
 	}
@@ -102,18 +104,14 @@ public class JsonModel extends CachedModel<Object>{
 	}
 
 	@Override
-	public String getTypeNameOf(Object instance) {
-		return instance.getClass().getSimpleName();
-	}
-
-	@Override
 	public Object getElementById(String id) {
 		throw new UnsupportedOperationException();
 	}
 
-	@Override
+	@Override // FIXME UnsupportedOperationException()
 	public String getElementId(Object instance) {
 		throw new UnsupportedOperationException();
+
 	}
 
 	@Override
@@ -123,7 +121,7 @@ public class JsonModel extends CachedModel<Object>{
 
 	@Override
 	public boolean owns(Object instance) {
-		return instance instanceof JSONObject /*||
+		return instance instanceof JSONElement && ((JSONElement) instance).getValue() instanceof JSONObject/*||
 			instance instanceof JSONArray*/;
 	}
 
@@ -133,15 +131,52 @@ public class JsonModel extends CachedModel<Object>{
 	}
 
 	@Override
-	public boolean hasType(String type) {
-		return JSONObject.class.getSimpleName().equals(type) || 
-			JSONArray.class.getSimpleName().equals(type);
+	public String getTypeNameOf(Object instance) {
+		if (instance instanceof JSONElement) {
+			return ((JSONElement) instance).getTag();
+		} else {
+			return instance.getClass().getSimpleName();
+		}
 	}
 
 	@Override
+	public boolean hasType(String type) {
+		return PlainXmlType.parse(type) != null;
+	}
+
+	@Override 
+	protected Collection<Object> getAllOfTypeFromModel(String type)
+			throws EolModelElementTypeNotFoundException {
+
+		List<Object> allOfType = null;
+		PlainXmlType jsonType = PlainXmlType.parse(type);
+
+		if (jsonType == null) {
+			throw new EolModelElementTypeNotFoundException(this.getName(), type);
+		}
+
+		allOfType = new ArrayList<Object>();
+		for (Object o : allContents()) {
+			JSONElement element = (JSONElement) o;
+			if (element.getTag().equalsIgnoreCase(jsonType.getTagName())){
+				if (element.getTag().toLowerCase().endsWith("s")){
+					for (JSONElement child : element.getChildren()){
+						allOfType.add(child);
+					}
+				} else {
+					allOfType.add(element);
+				}
+			}
+		}
+
+		return allOfType;
+
+	}
+	
+	@Override
 	public boolean store(String location) {
 		try {
-			FileUtil.setFileContents(JSONValue.toJSONString(root), new File(location));
+			FileUtil.setFileContents(JSONValue.toJSONString(root.getValue()), new File(location));
 			return true;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
@@ -159,16 +194,11 @@ public class JsonModel extends CachedModel<Object>{
 	}
 
 	@Override
-	protected Collection<Object> allContentsFromModel() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	protected Collection<Object> getAllOfTypeFromModel(String type)
-			throws EolModelElementTypeNotFoundException {
-		// TODO Auto-generated method stub
-		return null;
+	protected Collection<Object> allContentsFromModel() { 
+		ArrayList<Object> elements = new ArrayList<Object>();
+		JsonUtil.collectChildElements(root, elements);
+		System.out.println(elements.toString());
+		return elements;		
 	}
 
 	@Override
@@ -177,11 +207,11 @@ public class JsonModel extends CachedModel<Object>{
 		return getAllOfTypeFromModel(kind);
 	}
 
-	@Override
+	@Override // FIXME
 	protected Object createInstanceInModel(String type)
 			throws EolModelElementTypeNotFoundException,
 			EolNotInstantiableModelElementTypeException {
-		
+
 		if (JSONObject.class.getSimpleName().equals(type)) {
 			return new JSONObject();
 		}
@@ -194,11 +224,11 @@ public class JsonModel extends CachedModel<Object>{
 	@Override
 	public void load(StringProperties properties, IRelativePathResolver resolver)
 			throws EolModelLoadingException {
-		
+
 		super.load(properties, resolver);
-		
-		String filePath = properties.getProperty(PlainXmlModel.PROPERTY_FILE);
-		
+
+		String filePath = properties.getProperty(JsonModel.PROPERTY_FILE);
+
 		if (filePath != null && filePath.trim().length() > 0) {
 			file = new File(resolver.resolve(filePath));
 		}
@@ -207,22 +237,22 @@ public class JsonModel extends CachedModel<Object>{
 			username = properties.getProperty(JsonModel.PROPERTY_USERNAME);
 			password = properties.getProperty(JsonModel.PROPERTY_PASSWORD);
 		}
-		
+
 		load();
 	}
-	
+
 	@Override
 	protected void loadModel() throws EolModelLoadingException {
 		try {
 			if (readOnLoad) {
 				Reader reader = null;
 				if (file == null) {
-					HttpClient httpClient = new DefaultHttpClient();
+					HttpClient httpClient = HttpClients.createDefault();
 					HttpGet httpGet = new HttpGet(uri);
 					if (username != null) {
-						httpGet.addHeader(BasicScheme.authenticate(
-								 new UsernamePasswordCredentials(username, password),
-								 "UTF-8", false));
+						String credentials =  username + ":" + password;
+						httpGet.addHeader(HttpHeaders.AUTHORIZATION, 
+								AuthSchemes.BASIC + " " + Base64.encodeBase64String(credentials.getBytes()));
 					}
 					HttpResponse httpResponse = httpClient.execute(httpGet);
 					HttpEntity responseEntity = httpResponse.getEntity();
@@ -231,7 +261,7 @@ public class JsonModel extends CachedModel<Object>{
 				else {
 					reader = new FileReader(file);
 				}
-				root = JSONValue.parse(reader);
+				root = new JSONElement(JSONValue.parse(reader));
 			}
 		}
 		catch (Exception ex) {
@@ -245,28 +275,26 @@ public class JsonModel extends CachedModel<Object>{
 	}
 
 	protected JsonPropertyGetter propertyGetter = new JsonPropertyGetter();
-	
+
 	@Override
 	public IPropertyGetter getPropertyGetter() {
 		return propertyGetter;
 	}
-	
-	
+
 	@Override
 	protected boolean deleteElementInModel(Object instance)
 			throws EolRuntimeException {
-		throw new UnsupportedOperationException();
+		throw new UnsupportedOperationException(); // FIXME
 	}
 
 	@Override
 	protected Object getCacheKeyForType(String type)
 			throws EolModelElementTypeNotFoundException {
-		return null;
+		return type;
 	}
 
 	@Override
 	protected Collection<String> getAllTypeNamesOf(Object instance) {
-		return Arrays.asList(instance.getClass().getSimpleName());
+		return Collections.singleton(getTypeNameOf(instance));
 	}
-	
 }
