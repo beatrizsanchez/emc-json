@@ -15,25 +15,24 @@ public class JsonPropertyGetter extends JavaPropertyGetter {
 			throws EolRuntimeException {
 
 		if(object instanceof JSONElement 
-				&& ((JSONElement) object).getValue() instanceof JSONObject) 
+				&& !((JSONElement) object).isArray()) 
 		{
 
 			final JSONElement e = (JSONElement) object;
-			final JSONObject value = (JSONObject) e.getValue();
+			final JSONObject jsonObject = (JSONObject) e.getValue();
 
 			if ("children".equals(property)) {
 				return e.getChildren();
 			}
 
 			if ("text".equals(property)) {
-				return value.toJSONString();
+				return jsonObject.toJSONString();
 			}
 
 			if ("parent".equals(property)) {
 				return e.parent;
 			}			
 
-			JSONObject jsonObject = (JSONObject) e.getValue();
 			PlainXmlProperty p = PlainXmlProperty.parse(property);
 
 			if (p != null) {
