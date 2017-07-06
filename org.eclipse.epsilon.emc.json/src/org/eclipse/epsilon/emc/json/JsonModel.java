@@ -150,29 +150,33 @@ public class JsonModel extends CachedModel<Object>{
 
 		List<Object> allOfType = null;
 		PlainXmlType jsonType = PlainXmlType.parse(type);
-
 		if (jsonType == null) {
 			throw new EolModelElementTypeNotFoundException(this.getName(), type);
 		}
+		String endType = jsonType.getTagName();
 
 		allOfType = new ArrayList<Object>();
 		for (Object o : allContents()) {
 			JSONElement element = (JSONElement) o;
-			if (element.getTag().equalsIgnoreCase(jsonType.getTagName())){
-				if (element.getTag().toLowerCase().endsWith("s")){
-					for (JSONElement child : element.getChildren()){
-						allOfType.add(child);
-					}
-				} else {
-					allOfType.add(element);
+			String tmpType = element.getTag();
+			if (tmpType.equalsIgnoreCase(endType)){
+				allOfType.add(element);
+			} else if (
+				tmpType.length()-1==endType.length() 
+				&& tmpType.endsWith("s")
+				&& tmpType.substring(0, tmpType.length()-1).equalsIgnoreCase(endType)
+					){
+				for (JSONElement child : element.getChildren()){
+					allOfType.add(child);
 				}
+
 			}
 		}
 
 		return allOfType;
 
 	}
-	
+
 	@Override
 	public boolean store(String location) {
 		try {
