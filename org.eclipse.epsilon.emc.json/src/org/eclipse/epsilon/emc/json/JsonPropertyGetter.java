@@ -18,11 +18,11 @@ public class JsonPropertyGetter extends JavaPropertyGetter {
 				&& !((JSONElement) object).isArray()) 
 		{
 
-			final JSONElement e = (JSONElement) object;
-			final JSONObject jsonObject = (JSONObject) e.getValue();
+			final JSONElement jsonElement = (JSONElement) object;
+			final JSONObject jsonObject = (JSONObject) jsonElement.getValue();
 
 			if ("children".equals(property)) {
-				return e.getChildren();
+				return jsonElement.getChildren();
 			}
 
 			if ("text".equals(property)) {
@@ -30,7 +30,7 @@ public class JsonPropertyGetter extends JavaPropertyGetter {
 			}
 
 			if ("parent".equals(property)) {
-				return e.parent;
+				return jsonElement.parent;
 			}			
 
 			PlainXmlProperty p = PlainXmlProperty.parse(property);
@@ -44,7 +44,7 @@ public class JsonPropertyGetter extends JavaPropertyGetter {
 					return new JSONElement(prop);
 				}
 
-				else if (p.isMany()) {
+				else if (p.isMany()) { //FIXME
 					if (prop == null) {
 						return new JSONArray();
 					} else {

@@ -3,7 +3,6 @@ package org.eclipse.epsilon.emc.json;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -22,11 +21,14 @@ public class JSONElement {
 
 	public JSONElement(JSONElement parent, String tag, Object value, String id) {
 		if (parent == null){
-			root=true;
+			root = true;
 			this.parent = null;
+			this.tag= PlainXmlType.parse("t_root").getTagName();
 		} else {
+			this.root = false;
 			this.parent = parent;
 		}
+		
 		if (value instanceof JSONObject){
 			this.value = (JSONObject) value;
 			this.array = false;
@@ -34,20 +36,20 @@ public class JSONElement {
 			this.value = (JSONArray) value;
 			this.array = true;
 		}
+		
 		if (tag == null || tag.isEmpty()){
 			setTag();
 		} else {
 			this.tag = PlainXmlType.parse("t_" +tag).getTagName();
 		}	
+		
 		if (id == null || id.isEmpty()){
 			this.id = this.tag;
 		} else {
 			this.id = id;
 		}
 	}
-	public String getId() {
-		return id;
-	}
+	
 	public JSONElement(JSONElement parent, String tag, Object value) {
 		this(parent, tag, value, null);
 	}	
@@ -59,14 +61,15 @@ public class JSONElement {
 		this(null, null, value);
 	}
 
+	public String getId() {
+		return id;
+	}
 	public JSONElement getParent() {
 		return parent;
 	}
-
 	public void setParent(JSONElement parent) {
 		this.parent = parent;
 	}
-
 	public String getTag() {
 		return tag;
 	}
@@ -74,27 +77,24 @@ public class JSONElement {
 	public void setTag() {
 		if (parent != null){
 			if (parent.isArray()){
-				this.tag = parent.getParent().getTag();
+				
 			} else {
 				JSONObject parentObject = (JSONObject) parent.getValue();
 				Iterator<?> iterator = parentObject.keySet().iterator();
 				while (iterator.hasNext()){
 					Object key = iterator.next();
 					Object element = parentObject.get(key);
-					if (this.isArray() && element instanceof JSONArray){
+					if (this.isArray()){
 						if (((JSONArray) element).equals((JSONArray) this.value)){
 							this.tag = PlainXmlType.parse("t_"+String.valueOf(key)).getTagName();
 						}
-					} else if (!this.isArray() && element instanceof JSONObject){
+					} else if (!this.isArray()){
 						if (((JSONObject) element).equals((JSONObject) this.value)){
 							this.tag = PlainXmlType.parse("t_"+String.valueOf(key)).getTagName();
 						}
 					}
 				}
 			}
-
-		} else {
-			this.tag = PlainXmlType.parse("t_root").getTagName();
 		}
 	}
 
@@ -122,46 +122,42 @@ public class JSONElement {
 		this.root = root;
 	}
 
-	public Object getProperty(String key){
+	public JSONElement getGet(String key){
 		if (!isArray() && ((JSONObject) value).containsKey(key)){
-			return ((JSONObject) value).get(key);
+			return new JSONElement(this, key, ((JSONObject) value).get(key));
+		} else {
+			return null;
 		}
-		return null;
 	}
 
-	@SuppressWarnings("unchecked")
+	// GETS PROPERTIES OF JSON OBJECT
 	public Collection<JSONElement> getProperties(){
 		if (!isArray()){
-			HashMap<String, JSONElement> result = new HashMap<String, JSONElement>();
+			ArrayList<JSONElement> result = new ArrayList<JSONElement>();
 			JSONObject jsonObject = (JSONObject) value;
-			Iterator<String> iterator = jsonObject.keySet().iterator();			
+			Iterator<String> iterator =  jsonObject.keySet().iterator();			
 			while (iterator.hasNext()){
 				String key = iterator.next();
-				Object child = ((JSONObject) value).get(key);
-				result.put(key, new JSONElement(this,child));
+				Object child = jsonObject.get(key);
+				result.add(new JSONElement(this, key, child));
 			}
-			return result.values();
+			return Collections.unmodifiableList(result);
 		}
 		return null;
 	}
 
+	// GETS ELEMENTS OF JSON ARRAY
 	public List<JSONElement> getChildren(){
 		List<JSONElement> result = new ArrayList<JSONElement>();
 		if (isArray()){
 			Iterator<?> iterator = ((JSONArray) this.getValue()).iterator();
+			int i = 1;
 			while (iterator.hasNext()){
 				JSONObject object = (JSONObject) iterator.next();
-				result.add(new JSONElement(this, this.tag, object));
+				result.add(new JSONElement(this, this.tag + i, object));
+				i++;
 			}
-		} else {
-			JSONObject element = (JSONObject) this.getValue();
-			Iterator<?> iterator = element.keySet().iterator();
-			while (iterator.hasNext()){
-				String key = (String) iterator.next();
-				//result.add(new JSONElement(this, this.tag+":"+key, element.get(key)));
-				result.add(new JSONElement(this, this.tag, element.get(key), key));
-				}
-		}
+		} 
 		return result;
 	}
 
@@ -182,7 +178,7 @@ public class JSONElement {
 
 	@Override
 	public String toString() {
-		return "JSONElement [parent=" + parent + ", array=" + array + ", root=" + root + ", tag=" + tag + "]";
+		return "JSONElement [tag=" + tag + " parent=" + ((parent == null) ? "" : parent.getTag()) + ", array=" + array + "]";
 	}
 
 }
