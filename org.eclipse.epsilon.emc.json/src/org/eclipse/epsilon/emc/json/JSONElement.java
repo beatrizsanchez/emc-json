@@ -35,6 +35,9 @@ public class JSONElement {
 		} else if (value instanceof JSONArray){
 			this.value = (JSONArray) value;
 			this.array = true;
+		} else {
+			this.value = value;
+			this.array = false; 
 		}
 		
 		if (tag == null || tag.isEmpty()){
@@ -135,7 +138,7 @@ public class JSONElement {
 		if (!isArray()){
 			ArrayList<JSONElement> result = new ArrayList<JSONElement>();
 			JSONObject jsonObject = (JSONObject) value;
-			Iterator<String> iterator =  jsonObject.keySet().iterator();			
+			Iterator<String> iterator = jsonObject.keySet().iterator();			
 			while (iterator.hasNext()){
 				String key = iterator.next();
 				Object child = jsonObject.get(key);
@@ -147,16 +150,13 @@ public class JSONElement {
 	}
 
 	// GETS ELEMENTS OF JSON ARRAY
-	public List<JSONElement> getChildren(){
+	public Collection<JSONElement> getChildren(){
 		List<JSONElement> result = new ArrayList<JSONElement>();
 		if (isArray()){
-			Iterator<?> iterator = ((JSONArray) this.getValue()).iterator();
-			int i = 1;
-			while (iterator.hasNext()){
-				JSONObject object = (JSONObject) iterator.next();
-				result.add(new JSONElement(this, this.tag + i, object));
-				i++;
-			}
+			JSONArray array = (JSONArray) this.getValue();
+			for (int i = 0; i < array.size(); i++){
+				result.add(new JSONElement(this, this.id + i, array.get(i)));	
+			}			
 		} 
 		return result;
 	}
@@ -178,7 +178,9 @@ public class JSONElement {
 
 	@Override
 	public String toString() {
-		return "JSONElement [tag=" + tag + " parent=" + ((parent == null) ? "" : parent.getTag()) + ", array=" + array + "]";
+		return "JSONElement [tag=" + tag + " parent=" 
+				+ ((parent == null) ? "" : parent.getTag()) 
+				+ ", array=" + array + "]";
 	}
 
 }

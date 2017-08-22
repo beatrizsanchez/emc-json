@@ -170,15 +170,17 @@ public class JsonModel extends CachedModel<Object>{
 				Reader reader = null;
 				if (file == null) {
 					HttpClient httpClient = HttpClients.createDefault();
-					HttpGet httpGet = new HttpGet(uri);
-					if (username != null) {
-						String credentials =  username + ":" + password;
-						httpGet.addHeader(HttpHeaders.AUTHORIZATION, 
-								AuthSchemes.BASIC + " " + Base64.encodeBase64String(credentials.getBytes()));
+					if (uri!=null){
+						HttpGet httpGet = new HttpGet(uri);
+						if (username != null) {
+							String credentials =  username + ":" + password;
+							httpGet.addHeader(HttpHeaders.AUTHORIZATION, 
+									AuthSchemes.BASIC + " " + Base64.encodeBase64String(credentials.getBytes()));
+						}
+						HttpResponse httpResponse = httpClient.execute(httpGet);
+						HttpEntity responseEntity = httpResponse.getEntity();
+						reader = new InputStreamReader(responseEntity.getContent());
 					}
-					HttpResponse httpResponse = httpClient.execute(httpGet);
-					HttpEntity responseEntity = httpResponse.getEntity();
-					reader = new InputStreamReader(responseEntity.getContent());
 				} else {
 					reader = new FileReader(file);
 				}
